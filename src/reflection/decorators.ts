@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
+import { isNumber } from 'util';
+import { isNil } from '../utils';
 import { ClassData, MethodData, ParameterData, PropertyData, ReflectHelper } from './reflection';
 
 export declare type ClassDecoratorCallback = (classData: ClassData) => void;
@@ -27,13 +29,26 @@ export declare type AnyDecoratorCallback = NoArgument | OneArgument | TwoArgumen
 export declare type AnyDecorator = ClassDecorator | MethodDecorator | PropertyDecorator | ParameterDecorator;
 
 export function AnyDecoratorFactory(callback: AnyDecoratorCallback): AnyDecorator {
-  return (
-    target: Object | Function,
-    arg1?: MethodData | PropertyData | undefined,
-    arg2?: ParameterData | any
-  ): void => {
+  return (target: Object | Function, arg1?: string | undefined, arg2?: number | any): void => {
     const targetFunction = typeof target === 'function' ? target : target.constructor;
-    callback(ReflectHelper.getOrCreateClassData(targetFunction), arg1, arg2);
+    const cd = ReflectHelper.getOrCreateClassData(targetFunction);
+    if (isNumber(arg2)) {
+      // We have a parameter decoration
+      const method = cd.getOrCreateMethod(arg1);
+      callback(cd, method, method.getOrCreateParameter(arg2));
+    } else if (!isNil(arg1)) {
+      // We have a property or a method
+      if (!isNil(arg2)) {
+        // We have a method decorator
+        callback(cd, cd.getOrCreateMethod(arg1), arg2);
+      } else {
+        // We have a property decorator
+        callback(cd, cd.getOrCreateProperty(arg1));
+      }
+    } else {
+      // Class decorator
+      callback(ReflectHelper.getOrCreateClassData(targetFunction));
+    }
   };
 }
 

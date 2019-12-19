@@ -1,10 +1,10 @@
 import { isFunction, isNil } from '../utils';
 import { kReflectKey } from './constants';
 
-export class AttributeData { }
+export class AttributeData {}
 
 // Lame way to check, however in nodejs there is an issue with module resolution
-//    not working when using instanceOf, if we find a better way we should replace this
+//    not working correctly when using instanceOf, if we find a better way we should replace this
 // There is a problem with classes using the same name, comming from different modules
 //    those will resolve true.
 function checkIfInstanceOf(whatToCheck: Function, targetToCheck: Function): boolean {
@@ -22,9 +22,9 @@ export class PropertyData {
   public name: string;
   // Attributes for the property
   public attributesData: AttributeData[];
-  // The data type of the attribute
+  // The data type of the property
   public type: Function;
-  // Tags attached to this property by various modules if needed
+  // Extra data attached to the class
   public tags: { [key: string]: any };
 
   public getAttributesOfType<T extends AttributeData>(targetType: Function): T[] {
@@ -39,7 +39,7 @@ export class ParameterData {
   public target: Function;
   // Custom attribute data that decorators can add
   public attributesData: AttributeData[];
-  // Tags attached to this method by various modules if needed
+  // Extra data attached to the class
   public tags: { [key: string]: any };
 
   public getAttributesOfType<T extends AttributeData>(targetType: Function): T[] {
@@ -59,7 +59,7 @@ export class MethodData {
   //    additional information from the typescript system, in order to do this we need to 'process'
   //    the method, this flag is indicating if the process has happened or not
   public processed = false;
-  // Tags attached to this method by various modules if needed
+  // Extra data attached to the class
   public tags: { [key: string]: any };
   // The return type of the function as taken from typescript
   public returnType: Function;
@@ -95,7 +95,7 @@ export class ClassData {
   // Extra data attached to the class
   public tags: { [key: string]: any };
   // Flag to indicate if the reflection information was build for the class
-  private _methodInfoBuilt = false;
+  private _infoBuilt = false;
 
   public getOrCreateMethod(method: string): MethodData {
     let data = this.methods.find((m: MethodData) => m.name === method);
@@ -123,18 +123,17 @@ export class ClassData {
     return data;
   }
 
-  public getProperties(): PropertyData[] {
-    return this.properties;
-  }
-
   public getAttributesOfType<T extends AttributeData>(targetType: Function): T[] {
     return this.attributeData.filter((inst: AttributeData) => checkIfInstanceOf(inst.constructor, targetType)) as T[];
   }
 
-  public buildMethodParameters(): void {
-    if (this._methodInfoBuilt) {
+  // Improve the information we have on the reflected parameters with information from reflect-metadata if needed.
+  public build(): void {
+    if (this._infoBuilt) {
       return;
     }
+
+    ClassData._prepopulateReflection(this);
     // We must go through each method and rebuild the parameters list based on the arguments it gets
     for (let methodIdx = 0; methodIdx < this.methods.length; ++methodIdx) {
       const method = this.methods[methodIdx];
@@ -153,7 +152,38 @@ export class ClassData {
       method.returnType = Reflect.getMetadata('design:returntype', this.target.prototype, method.name);
       method.processed = true;
     }
-    this._methodInfoBuilt = true;
+
+    // Go through the properties and check if we have any information on them
+    for (let propertyIdx = 0; propertyIdx < this.properties.length; ++propertyIdx) {
+      const prop = this.properties[propertyIdx];
+      if (!isNil(prop.type)) {
+        continue;
+      }
+      const reflectedParam: Function = Reflect.getMetadata('design:type', this.target.prototype, prop.name);
+      if (!isNil(reflectedParam)) {
+        prop.type = reflectedParam;
+      }
+    }
+    this._infoBuilt = true;
+  }
+
+  private static _prepopulateReflection(cd: ClassData): void {
+    // Get all properties / methods from the class and add them to the class data
+    const propDescriptions = Object.getOwnPropertyDescriptors(cd.target.prototype);
+    for (const propKey in propDescriptions) {
+      if (propKey === 'constructor') continue;
+
+      const propDescriptor = propDescriptions[propKey];
+      if (isNil(propDescriptor.get) && isNil(propDescriptor.set)) {
+        if (isFunction(propDescriptor.value)) {
+          // Assume it's a method
+          cd.getOrCreateMethod(propKey);
+        }
+      } else {
+        // Assume it's a property
+        cd.getOrCreateProperty(propKey);
+      }
+    }
   }
 }
 
@@ -179,7 +209,6 @@ export class ReflectHelper {
   public static getOrCreateClassData(target: Function): ClassData {
     let found = Reflect.getOwnMetadata(Symbol.keyFor(kReflectKey), target);
     if (isNil(found)) {
-      // Make it injectable so we can create types for this class using inversify
       found = new ClassData();
       found.name = target.name;
       found.target = target;
@@ -188,27 +217,7 @@ export class ReflectHelper {
       found.tags = {};
       found.properties = [];
       Reflect.defineMetadata(Symbol.keyFor(kReflectKey), found, target);
-
-      ReflectHelper._prepopulateReflection(found);
     }
     return found;
-  }
-
-  private static _prepopulateReflection(cd: ClassData): void {
-    // Get all properties / methods from the class and add them to the class data
-    const propDescriptions = Object.getOwnPropertyDescriptors(cd.target.prototype);
-    for (const propKey in propDescriptions) {
-      if (propKey === 'constructor') continue;
-
-      const propDescriptor = propDescriptions[propKey];
-      if (isNil(propDescriptor.get) && isNil(propDescriptor.set)) {
-        if (isFunction(propDescriptor.value)) {
-          cd.getOrCreateMethod(propKey);
-        }
-      } else {
-        // Assume it's a property
-        cd.getOrCreateProperty(propKey);
-      }
-    }
   }
 }

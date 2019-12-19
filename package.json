@@ -1,16 +1,27 @@
 {
   "name": "lib-reflect",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Reflection functionality.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MRazvan/lib-reflect.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MRazvan/lib-reflect/issues"
+  },
+  "homepage": "https://github.com/MRazvan/lib-reflect#readme",
   "scripts": {
     "tsc:w": "tsc -w",
     "build": "tsc",
     "start": "node ./dist/index.js --dev",
     "start:debug": "node --inspect-brk=9229 ./dist/index.js --dev",
     "test": "node ./node_modules/mocha/bin/mocha -r ./node_modules/ts-node/register/index.js ./tests/**/*.spec.ts --exit",
-    "coverage:test": "node ./node_modules/nyc/bin/nyc.js --reporter=html --reporter=text npm run test",
+    "coverage:test": "node ./node_modules/nyc/bin/nyc.js --reporter=html --reporter=text --reporter=lcov npm run test",
     "tc:test": "node ./node_modules/mocha/bin/mocha --reporter mocha-teamcity-reporter -r ./node_modules/ts-node/register/index.js ./tests/**/*.spec.ts --exit",
     "nyc:test": "node ./node_modules/nyc/bin/nyc.js --reporter=html --reporter=teamcity npm run tc:test",
     "lint": "node ./node_modules/eslint/bin/eslint.js ./src/**/*.ts ./index.ts",
@@ -61,5 +72,8 @@
     ],
     "sourceMap": true,
     "instrument": true
-  }
+  },
+  "files": [
+    "dist/**/{*.js,*.d.ts}"
+  ]
 }

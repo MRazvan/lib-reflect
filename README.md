@@ -1,91 +1,71 @@
 # lib-reflect
+<p align="center">
+<img src="https://github.com/MRazvan/lib-reflect/workflows/build/badge.svg">
+<img src="https://coveralls.io/repos/github/MRazvan/lib-reflect/badge.svg?branch=master">
+<img src="https://img.shields.io/github/package-json/v/MRazvan/lib-reflect?style=flat-square">
+<img src="https://img.shields.io/github/license/MRazvan/lib-reflect?style=flat-square">
+</p>
 
-Utility project for helping with Reflection and Decorators in typescript.
+Opinionated project for helping with Reflection and Decorators in typescript. 
+It tries to simplify storing data on the reflected target without using reflect-metadata and simplifies creation of decorators.
 
 - [lib-reflect](#lib-reflect)
-  - [Getting Started](#getting-started)
-  - [Running the tests](#running-the-tests)
+  - [Installation](#installation)
   - [Reflection](#reflection)
+      - [ClassData](#classdata)
+      - [PropertyData](#propertydata)
+      - [MethodData](#methoddata)
+      - [ParameterData](#parameterdata)
   - [Decorators](#decorators)
+    - [ClassDecoratorFactory](#classdecoratorfactory)
+    - [PropertyDecoratorFactory](#propertydecoratorfactory)
+    - [MethodDecoratorFactory](#methoddecoratorfactory)
+    - [ParameterDecoratorFactory](#parameterdecoratorfactory)
+    - [AnyDecoratorFactory](#anydecoratorfactory)
   - [Dynamic](#dynamic)
   - [Example](#example)
       - [Example using Reflection and Decorators](#example-using-reflection-and-decorators)
-
-## Getting Started
-
-Clone the project. And run the standard commands to install packages in node.
+## Installation
+Standard npm package install
 ```
-npm i
-```
-
-
-## Running the tests
-The tests are using **mocha** / **chai** 
-
-For reporting **istanbul** is used
-```
-npm run coverage:test
+npm i lib-reflect
 ```
 
 ## Reflection
 The reflection system is made, so it's easy to use without working
-with the reflect-metadata system directly.
+with the reflect-metadata system directly. 
+It works in conjuction with the decorator helpers bellow.
 ```typescript
 class MyTestClass{}
 const myTestData: ClassData = ReflectHelper.getOrCreateClassData(MyTestClass);
 console.log(myTestData);
 ```
-The ***ClassData*** object contains information about the reflected class like:
+The ReflectHelper class has the following methods to help with retrieving / creating class reflection information.
 
-1. The class name
-2. The class constructor
-3. The methods on the class
-4. The properties on the class (with some limitations)
-5. The attributes on the class
-6. Any other information we need that does not fit into those categories
-
-The following classes are available and contain reflection information
+> Before using the ClassData we need to call **build** on it so it can gather extra information from the generated decorators (like the return type for the method, or extra parameters not decorated by us);
 ```typescript
-class PropertyData {
-  // Name of the property
-  public name: string;
-  // Attributes for the property
-  public attributesData: AttributeData[];
-  // The data type of the attribute
-  public type: Function;
-  // Tags attached to this property by various modules if needed
-  public tags: { [key: string]: any };
-}
+const cd = ReflectHelper.getClass(<someClass>);
+cd.build();
+// Now we have all the information including extra information added by the generated decorators
+```
 
-class ParameterData {
-  // The index of the parameter
-  public idx: number;
-  // The type of the parameter
-  public target: Function;
-  // Custom attribute data that decorators can add
-  public attributesData: AttributeData[];
-  // Tags attached to this method by various modules if needed
-  public tags: { [key: string]: any };
-}
+```typescript
+class TestClass {}
 
-class MethodData {
-  // Name of the method to invoke on the controller
-  public name: string;
-  // The options applied on the method
-  public attributesData: AttributeData[];
-  // The parameters needed to the handler method
-  public parameters: ParameterData[];
-  // Flag indicating if this method has been processed or not
-  //    We don't always decorate the parameters, the reflection system will try and get
-  //    additional information from the typescript system, in order to do this we need to 'process'
-  //    the method, this flag is indicating if the process has happened or not
-  public processed = false;
-  // Tags attached to this method by various modules if needed
-  public tags: { [key: string]: any };
-  // The return type of the function as taken from typescript
-  public returnType: Function;
-}
+// Will retrieve if it exists or create the class data reflection info object for that class
+const cd: ClassData = ReflectHelper.getOrCreateClassData(TestClass);
+// Will retrieve the reflection info object for the class if it exists, if not it will return null
+const cd: ClassData = ReflectHelper.getClass(TestClass);
+// Will retrieve reflection info objects for the class and all the parents if they have any reflection data
+//    The data order will be from derived to base (TestClassData, ParentData, ParentParentData ....)
+const cd: ClassData[] = ReflectHelper.getClassWithParentsIncluded(TestClass);
+```
 
+The following classes are available and contain reflection information:
+
+#### ClassData
+Contains information about the reflected class it is created / retrieved using the ReflectHelper methods:
+```typescript
 class ClassData {
   // Name of the class
   public name: string;
@@ -101,12 +81,80 @@ class ClassData {
   public tags: { [key: string]: any };
 }
 ```
+In order to get / create the reflected data on a method we can use the following function:
+```typescript
+  const methodData: MethodData = classData.getOrCreateMethod(methodName);
+```
+In order to get / create the reflected data on a property we can use the following function:
+```typescript
+  const propertyData: PropertyData = classData.getOrCreateProperty(propertyName);
+```
+
+#### PropertyData
+Contains information about the reflected property:
+```typescript
+class PropertyData {
+  // Name of the property
+  public name: string;
+  // Attributes for the property
+  public attributesData: AttributeData[];
+  // The data type of the property
+  public type: Function;
+  // Tags attached to this property by various decorators if needed
+  public tags: { [key: string]: any };
+}
+```
+
+#### MethodData
+Contains information about the reflected method:
+```typescript
+class MethodData {
+  // Name of the method to invoke on the controller
+  public name: string;
+  // The options applied on the method
+  public attributesData: AttributeData[];
+  // The parameters needed to the handler method
+  public parameters: ParameterData[];
+  // Flag indicating if this method has been processed or not
+  //    We don't always decorate the parameters, the reflection system will try and get
+  //    additional information from the typescript system, in order to do this we need to 'process'
+  //    the method, this flag is indicating if the process has happened or not
+  public processed = false;
+  // Tags attached to this method by various decorators if needed
+  public tags: { [key: string]: any };
+  // The return type of the function as taken from typescript
+  public returnType: Function;
+}
+```
+In order to get / create a new parameter reflection data we can use the following function:
+```typescript
+  const paramData: ParameterData = methodData.getOrCreateParameter(paramIdx);
+```
+
+#### ParameterData
+Contains information about the reflected parameter:
+```typescript
+class ParameterData {
+  // The index of the parameter
+  public idx: number;
+  // The type of the parameter
+  public target: Function;
+  // Custom attribute data that decorators can add
+  public attributesData: AttributeData[];
+  // Tags attached to this parameter by various modules if needed
+  public tags: { [key: string]: any };
+}
+```
 
 ## Decorators
 Expose utility functions that use the Reflection system to ease the creation and management of decorators and decorator data.
 
-One of the problem with reflect-metadata is that a method / property decorator is called before the class decorator. Using the functions bellow it does not matter what is called when, the implementation will take care of creating what is needed and sending the data to the handler.
+One of the problem with decorators is that a method / property decorator is called before the class decorator. Using the functions bellow it does not matter what is called when, the implementation will take care of creating what is needed and sending the data to the handler.
 The decorate call order will still be the same, however the class data will exist in all handlers regardless of the order.
+
+The following helper methods are available:
+### ClassDecoratorFactory
+It accepts a callback that takes the [ClassData](#classdata) as argument, you can modify the reflection information inside that callback.
 ```typescript
 // Example of a Class Decorator created using the ClassDecoratorFactory
 const classDecorator = (val:number): ClassDecorator => ClassDecoratorFactory(
@@ -115,7 +163,11 @@ const classDecorator = (val:number): ClassDecorator => ClassDecoratorFactory(
     // Manipulate the class reflection data if needed
   }
 );
+```
+### PropertyDecoratorFactory
+It accepts a callback that takes the [ClassData](#classdata) and the [PropertyData](#propertydata) as arguments, you can modify the reflection information inside that callback.
 
+```typescript
 // Example of a Property Decorator created using the PropertyDecoratorFactory
 const propertyDecorator = (val:number): PropertyDecorator => PropertyDecoratorFactory(
   (cd: ClassData, prop:PropertyData) => {
@@ -123,7 +175,11 @@ const propertyDecorator = (val:number): PropertyDecorator => PropertyDecoratorFa
     prop.tags['MyCustomPropertyValue'] = val;
   }
 );
+```
+### MethodDecoratorFactory
+It accepts a callback that takes the [ClassData](#classdata), [MethodData](#methodata) and the property descriptor as arguments, you can modify the reflection information inside that callback.
 
+```typescript
 // Example of a Method Decorator created using the MethodDecoratorFactory
 const methodDecorator = (val:number): MethodDecorator => MethodDecoratorFactory(
   (cd: ClassData, md:MethodData, descr: any) => {
@@ -131,17 +187,25 @@ const methodDecorator = (val:number): MethodDecorator => MethodDecoratorFactory(
     md.tags['MethodCacheTimeout'] = val;
   }
 );
+```
+### ParameterDecoratorFactory
+It accepts a callback that takes the [ClassData](#classdata), [MethodData](#methodata) and the [ParameterData](#parameterdata) as arguments, you can modify the reflection information inside that callback.
 
+```typescript
 // Example of a Argument Decorator created using the ParameterDecoratorFactory
 const parameterDecorator = (): ParameterDecorator => ParameterDecoratorFactory(
-  (cd: ClassData, md:MethodData, paramIdx: number) => {
+  (cd: ClassData, md:MethodData, param: ParameterData) => {
     // Manipulate the class / method / argument reflection data if needed
   }
 );
-
+```
+### AnyDecoratorFactory
+It accepts a callback that takes a combination of all the above as arguments, you can modify the reflection information inside that callback.
+It can be applied on anything (class, method, properties, parameters)
+```typescript
 // Example of a Decorator that can be used to decorate anything created using the AnyDecoratorFactory
 const anyDecorator = (): AnyDecorator => AnyDecoratorFactory(
-  (cd: ClassData, arg1: MethodData | PropertyData | undefined, arg2: number | any) => {
+  (cd: ClassData, arg1: MethodData | PropertyData | undefined, arg2: ParameterData | any) => {
     // Manipulate the class / property / method / argument reflection data if needed
   }
 );
@@ -202,11 +266,14 @@ console.log(classData);
 ```
 
 ## Example
+
+For a complex example including [lib-intercept](https://github.com/MRazvan/lib-intercept) go to [lib-intercept-example](https://github.com/MRazvan/lib-intercept-example)
+
 #### Example using Reflection and Decorators
 
 Assume we can intercept a function call on a certain class, and we want to decorate the methods with some
 additional functionality, like:
-1. Caching
+1. Caching7
 2. Return value override
 3. Argument value override
 
@@ -279,7 +346,7 @@ class DecoratedClass {
 }
 
 const classData = ReflectHelper.getClass(DecoratedClass);
-classData.buildMethodParameters();
+classData.build();
 console.log(classData.methods);
 ```
 

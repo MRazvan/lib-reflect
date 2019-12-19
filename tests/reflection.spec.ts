@@ -68,7 +68,7 @@ describe('ReflectHelper', () => {
 
    it('MethodData should have argument metadata if argument is not decorated.', () => {
       const cdata = ReflectHelper.getClass(ParamTestTyped);
-      cdata.buildMethodParameters();
+      cdata.build();
 
       expect(cdata.methods[0].parameters).to.have.length(2);
       const argument = cdata.methods[0].parameters[1];
@@ -128,6 +128,7 @@ describe('ReflectHelper', () => {
          public testProp: string;
       }
       const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
       expect(cdata).not.to.be.undefined;
       expect(cdata).not.to.be.null;
       expect(cdata.name).to.eq('TestClass');
@@ -144,6 +145,7 @@ describe('ReflectHelper', () => {
          public get testProp() { return ''; }
       }
       const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
       expect(cdata).not.to.be.undefined;
       expect(cdata).not.to.be.null;
       expect(cdata.name).to.eq('TestClass');
@@ -153,5 +155,35 @@ describe('ReflectHelper', () => {
       expect(cdata.methods).to.have.length(1);
       const method = cdata.methods[0];
       expect(method.name).to.be.eq('testMethod');
+   });
+
+   it('Should populate property type information from reflect-metadata.', () => {
+      const dec = (): PropertyDecorator => PropertyDecoratorFactory((cd, pd) => { });
+      class TestClass {
+         public testMethod() { }
+         @dec()
+         public test: string;
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      expect(cdata).not.to.be.undefined;
+      expect(cdata).not.to.be.null;
+      expect(cdata.properties[0].type).to.eq(String);
+   });
+
+   it('Should not populate property type information from reflect-metadata if it already has it.', () => {
+      const dec = (): PropertyDecorator => PropertyDecoratorFactory((cd, pd) => {
+         pd.type = Number;
+      });
+      class TestClass {
+         public testMethod() { }
+         @dec()
+         public test: string;
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      expect(cdata).not.to.be.undefined;
+      expect(cdata).not.to.be.null;
+      expect(cdata.properties[0].type).to.eq(Number);
    });
 });
