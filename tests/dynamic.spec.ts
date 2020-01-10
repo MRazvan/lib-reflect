@@ -50,21 +50,21 @@ describe('Dynamic', () => {
    })
 
    it('Should create methods on the class.', () => {
-      expect(classData.methods.length).to.eq(2);
-      expect(classData.methods[0].name).to.eq('dynamicMethod');
+      expect(classData.methods.length).to.eq(3);
+      expect(classData.methods[1].name).to.eq('dynamicMethod');
    })
 
    it('Should apply decorators to methods.', () => {
-      expect(classData.methods[0].tags['dec']).to.be.true;
+      expect(classData.methods[1].tags['dec']).to.be.true;
    })
 
    it('Should add arguments to methods.', () => {
-      const method = classData.methods[0];
+      const method = classData.methods[1];
       expect(method.parameters.length).to.eq(2);
    })
 
    it('Should add decorators to method parameters.', () => {
-      const method = classData.methods[0];
+      const method = classData.methods[1];
       expect(method.parameters[1].tags['dec']).to.be.true;
    })
 

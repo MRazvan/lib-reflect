@@ -68,7 +68,7 @@ export function PropertyDecoratorFactory(callback: PropertyDecoratorCallback): P
 
 export function ParameterDecoratorFactory(callback: ParameterDecoratorCallback): ParameterDecorator {
   return (target: Object, propertyKey: string, parameterIndex: number): void => {
-    const cd = ReflectHelper.getOrCreateClassData(target.constructor);
+    const cd = ReflectHelper.getOrCreateClassData(isNil(propertyKey) ? (target as Function) : target.constructor);
     const method = cd.getOrCreateMethod(propertyKey);
     const param = method.getOrCreateParameter(parameterIndex);
     callback(cd, method, param);

@@ -72,7 +72,7 @@ class ClassData {
   // The constructor function
   public target: Function;
   // Attributes applied to the class
-  public attributeData: AttributeData[];
+  public attributesData: AttributeData[];
   // Methods
   public methods: MethodData[];
   // Properties
@@ -89,7 +89,10 @@ In order to get / create the reflected data on a property we can use the followi
 ```typescript
   const propertyData: PropertyData = classData.getOrCreateProperty(propertyName);
 ```
-
+In order to get the constructor method info:
+```typescript
+  const propertyData: PropertyData = classData.getConstructorData(propertyName);
+```
 #### PropertyData
 Contains information about the reflected property:
 ```typescript
@@ -143,6 +146,12 @@ class ParameterData {
   public attributesData: AttributeData[];
   // Tags attached to this parameter by various modules if needed
   public tags: { [key: string]: any };
+  // The name of the parameter
+  // In theory we might be able to get the parameter name for the method
+  //    it's not an orthodox method, however it is beeing used by other libraries like 'angularjs'
+  // I would suggest not to rely on this field
+  // Also for constructor functions this is not available
+  public name: string;  
 }
 ```
 

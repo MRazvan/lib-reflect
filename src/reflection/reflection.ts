@@ -1,5 +1,6 @@
 import { isFunction, isNil } from '../utils';
 import { kReflectKey } from './constants';
+import { getMethodParameterNames } from './internals/function.param.names';
 
 export class AttributeData {}
 
@@ -41,6 +42,12 @@ export class ParameterData {
   public attributesData: AttributeData[];
   // Extra data attached to the class
   public tags: { [key: string]: any };
+  // The name of the parameter
+  // In theory we might be able to get the parameter name for the method
+  //    it's not an orthodox method, however it is beeing used by other libraries like 'angularjs'
+  // I would suggest not to rely on this field
+  // Also for constructor functions this is not available
+  public name: string;
 
   public getAttributesOfType<T extends AttributeData>(targetType: Function): T[] {
     return this.attributesData.filter((inst: AttributeData) => checkIfInstanceOf(inst.constructor, targetType)) as T[];
@@ -87,7 +94,7 @@ export class ClassData {
   // The constructor function
   public target: Function;
   // Attributes applied to the class
-  public attributeData: AttributeData[];
+  public attributesData: AttributeData[];
   // Methods
   public methods: MethodData[];
   // Properties
@@ -97,7 +104,15 @@ export class ClassData {
   // Flag to indicate if the reflection information was build for the class
   private _infoBuilt = false;
 
+  public getConstructorData(): MethodData {
+    return this.getOrCreateMethod(null);
+  }
+
   public getOrCreateMethod(method: string): MethodData {
+    if (isNil(method)) {
+      method = 'constructor';
+    }
+
     let data = this.methods.find((m: MethodData) => m.name === method);
     if (isNil(data)) {
       data = new MethodData();
@@ -124,7 +139,7 @@ export class ClassData {
   }
 
   public getAttributesOfType<T extends AttributeData>(targetType: Function): T[] {
-    return this.attributeData.filter((inst: AttributeData) => checkIfInstanceOf(inst.constructor, targetType)) as T[];
+    return this.attributesData.filter((inst: AttributeData) => checkIfInstanceOf(inst.constructor, targetType)) as T[];
   }
 
   // Improve the information we have on the reflected parameters with information from reflect-metadata if needed.
@@ -142,14 +157,41 @@ export class ClassData {
       }
       // Get the reflected parameters from typescript and merge them with parameters from reflection
       const reflectedParams: Function[] =
-        Reflect.getMetadata('design:paramtypes', this.target.prototype, method.name) || [];
+        (method.name === 'constructor'
+          ? Reflect.getMetadata('design:paramtypes', this.target)
+          : Reflect.getMetadata('design:paramtypes', this.target.prototype, method.name)) || [];
+
       for (let paramIdx = 0; paramIdx < reflectedParams.length; ++paramIdx) {
-        // Now check if we have a parameter on idx = paramIdx if we do skip this parameter
-        //    since it already has an attribute
+        // Force a parameter creation so if it does not exist, we created it now
         const methodParam: ParameterData = method.getOrCreateParameter(paramIdx);
-        methodParam.target = reflectedParams[paramIdx];
+        methodParam.target = methodParam.target || reflectedParams[paramIdx];
       }
-      method.returnType = Reflect.getMetadata('design:returntype', this.target.prototype, method.name);
+
+      // This is here in case we don't have the method / parameters decorated, in that case
+      //    The decorator system would not work, so generate parameters based on javascript functionality
+      const targetParamsCount =
+        method.name === 'constructor'
+          ? this.target.prototype.constructor.length
+          : this.target.prototype[method.name].length;
+      if (method.parameters.length === 0 && targetParamsCount !== 0) {
+        // We might have a method that is not decorated so create the parameters by hand
+        const paramsCount = targetParamsCount;
+        for (let idx = 0; idx < paramsCount; ++idx) {
+          method.getOrCreateParameter(idx);
+        }
+      }
+
+      // Now that we have processed parameters get the name of them
+      if (method.name !== 'constructor') {
+        const paramNames = getMethodParameterNames(this.target.prototype[method.name]);
+        paramNames.forEach((param: string, idx: number) => {
+          const paramData = method.getOrCreateParameter(idx);
+          paramData.name = param;
+        });
+      }
+
+      method.returnType =
+        method.returnType || Reflect.getMetadata('design:returntype', this.target.prototype, method.name);
       method.processed = true;
     }
 
@@ -161,7 +203,7 @@ export class ClassData {
       }
       const reflectedParam: Function = Reflect.getMetadata('design:type', this.target.prototype, prop.name);
       if (!isNil(reflectedParam)) {
-        prop.type = reflectedParam;
+        prop.type = prop.type || reflectedParam;
       }
     }
     this._infoBuilt = true;
@@ -207,15 +249,16 @@ export class ReflectHelper {
   }
 
   public static getOrCreateClassData(target: Function): ClassData {
-    let found = Reflect.getOwnMetadata(Symbol.keyFor(kReflectKey), target);
+    let found: ClassData = Reflect.getOwnMetadata(Symbol.keyFor(kReflectKey), target);
     if (isNil(found)) {
       found = new ClassData();
       found.name = target.name;
       found.target = target;
-      found.attributeData = [];
+      found.attributesData = [];
       found.methods = [];
       found.tags = {};
       found.properties = [];
+      found.getConstructorData().returnType = target;
       Reflect.defineMetadata(Symbol.keyFor(kReflectKey), found, target);
     }
     return found;

@@ -52,16 +52,16 @@ describe('ReflectHelper', () => {
 
    it('ClassData should have method metadata if method is decorated.', () => {
       const cdata = ReflectHelper.getClass(MethodTest);
-      expect(cdata.methods).to.have.length(1);
-      const method = cdata.methods[0];
+      expect(cdata.methods).to.have.length(2);
+      const method = cdata.methods[1];
       expect(method).not.to.be.null;
       expect(method.name).to.be.eq('method');
    });
 
    it('MethodData should have argument metadata if argument is decorated.', () => {
       const cdata = ReflectHelper.getClass(ParamTest);
-      expect(cdata.methods[0].parameters).to.have.length(1);
-      const argument = cdata.methods[0].parameters[0];
+      expect(cdata.methods[1].parameters).to.have.length(1);
+      const argument = cdata.methods[1].parameters[0];
       expect(argument).not.to.be.null;
       expect(argument.idx).to.be.eq(0);
    });
@@ -70,8 +70,8 @@ describe('ReflectHelper', () => {
       const cdata = ReflectHelper.getClass(ParamTestTyped);
       cdata.build();
 
-      expect(cdata.methods[0].parameters).to.have.length(2);
-      const argument = cdata.methods[0].parameters[1];
+      expect(cdata.methods[1].parameters).to.have.length(2);
+      const argument = cdata.methods[1].parameters[1];
       expect(argument).not.to.be.null;
       expect(argument.idx).to.be.eq(1);
       expect(argument.target.name).to.be.eq('String');
@@ -133,8 +133,8 @@ describe('ReflectHelper', () => {
       expect(cdata).not.to.be.null;
       expect(cdata.name).to.eq('TestClass');
       expect(cdata.properties).to.have.length(0);
-      expect(cdata.methods).to.have.length(1);
-      const method = cdata.methods[0];
+      expect(cdata.methods).to.have.length(2);
+      const method = cdata.methods[1];
       expect(method.name).to.be.eq('testMethod');
    });
 
@@ -152,8 +152,8 @@ describe('ReflectHelper', () => {
       expect(cdata.properties).to.have.length(1);
       const property = cdata.properties[0];
       expect(property.name).to.be.eq('testProp');
-      expect(cdata.methods).to.have.length(1);
-      const method = cdata.methods[0];
+      expect(cdata.methods).to.have.length(2);
+      const method = cdata.methods[1];
       expect(method.name).to.be.eq('testMethod');
    });
 
@@ -185,5 +185,66 @@ describe('ReflectHelper', () => {
       expect(cdata).not.to.be.undefined;
       expect(cdata).not.to.be.null;
       expect(cdata.properties[0].type).to.eq(Number);
+   });
+
+   it('Should get constructor data', () => {
+      class TestClass {
+         constructor(){}
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      const method = cdata.getConstructorData();
+      expect(method).not.to.be.undefined;
+      expect(method).not.to.be.null;
+      expect(method.returnType).to.eq(TestClass);
+   });
+
+   it('Should get constructor parameter data', () => {
+      const P = (): ParameterDecorator => ParameterDecoratorFactory((cd, md, pd) => {
+         pd.tags['Decorated'] = true;
+      });
+      class TestClass {
+         constructor(@P() m: Number){}
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      const method = cdata.getConstructorData();
+      expect(method).not.to.be.undefined;
+      expect(method).not.to.be.null;
+      expect(method.returnType).to.eq(TestClass);
+      expect(method.parameters.length).to.eq(1);
+      const p = method.parameters[0];
+      expect(p.tags['Decorated']).to.be.true;
+      expect(p.target).to.eq(Number);
+   });   
+
+   it('Should get create parameters information even without decorators', () => {
+      class TestClass {
+         constructor(x: any){}
+         public method (y: any, z: any, t: any){}
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      const method = cdata.getConstructorData();
+      expect(method).not.to.be.undefined;
+      expect(method).not.to.be.null;
+      expect(method.returnType).to.eq(TestClass);
+      expect(method.parameters.length).to.eq(1);
+
+      const mdata = cdata.getOrCreateMethod('method');
+      expect(mdata.parameters.length).to.eq(3);
+   });
+
+      it('Should set parameters names', () => {
+      class TestClass {
+         public method (y: any, z: any, t: any){}
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      const mdata = cdata.getOrCreateMethod('method');
+      expect(mdata.parameters.length).to.eq(3);
+      expect(mdata.parameters[0].name).to.eq('y');
+      expect(mdata.parameters[1].name).to.eq('z');
+      expect(mdata.parameters[2].name).to.eq('t');
    });
 });
