@@ -8,8 +8,9 @@ export class AttributeData {}
 //    not working correctly when using instanceOf, if we find a better way we should replace this
 // There is a problem with classes using the same name, comming from different modules
 //    those will resolve true.
-function checkIfInstanceOf(whatToCheck: Function, targetToCheck: Function): boolean {
-  if (whatToCheck.name === targetToCheck.name) {
+export function checkIfInstanceOf(whatToCheck: Function, targetToCheck: Function): boolean {
+  const name = isFunction(whatToCheck) ? whatToCheck.name : whatToCheck.constructor.name;
+  if (name === targetToCheck.name) {
     return true;
   }
   if (!isNil(whatToCheck.__proto__)) {
