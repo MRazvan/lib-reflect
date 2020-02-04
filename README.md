@@ -22,6 +22,7 @@ It tries to simplify storing data on the reflected target without using reflect-
     - [MethodDecoratorFactory](#methoddecoratorfactory)
     - [ParameterDecoratorFactory](#parameterdecoratorfactory)
     - [AnyDecoratorFactory](#anydecoratorfactory)
+  - [Reflect Hooks](#reflect-hooks)
   - [Dynamic](#dynamic)
   - [Example](#example)
       - [Example using Reflection and Decorators](#example-using-reflection-and-decorators)
@@ -91,11 +92,17 @@ In order to get / create the reflected data on a property we can use the followi
 ```
 In order to get the constructor method info:
 ```typescript
-  const propertyData: PropertyData = classData.getConstructorData(propertyName);
+  const constructorData: MethodData = classData.getConstructorData();
 ```
 #### PropertyData
 Contains information about the reflected property:
 ```typescript
+
+enum PropertyFlags {
+  INSTANCE,
+  STATIC
+}
+
 class PropertyData {
   // Name of the property
   public name: string;
@@ -105,12 +112,22 @@ class PropertyData {
   public type: Function;
   // Tags attached to this property by various decorators if needed
   public tags: { [key: string]: any };
+  // Flags for the property
+  public flags: PropertyFlags;
+  // The parent class
+  public parent: ClassData;  
 }
 ```
 
 #### MethodData
 Contains information about the reflected method:
 ```typescript
+enum MethodFlags {
+  INSTANCE,
+  STATIC,
+  CONSTRUCTOR
+}
+
 class MethodData {
   // Name of the method to invoke on the controller
   public name: string;
@@ -122,11 +139,15 @@ class MethodData {
   //    We don't always decorate the parameters, the reflection system will try and get
   //    additional information from the typescript system, in order to do this we need to 'process'
   //    the method, this flag is indicating if the process has happened or not
-  public processed = false;
+  public processed: boolean;
   // Tags attached to this method by various decorators if needed
   public tags: { [key: string]: any };
   // The return type of the function as taken from typescript
   public returnType: Function;
+  // Flags for the method
+  public flags: MethodFlags;
+  // The parent class
+  public parent: ClassData;  
 }
 ```
 In order to get / create a new parameter reflection data we can use the following function:
@@ -152,6 +173,8 @@ class ParameterData {
   // I would suggest not to rely on this field
   // Also for constructor functions this is not available
   public name: string;  
+  // The parent method
+  public parent: MethodData;  
 }
 ```
 
@@ -220,6 +243,34 @@ const anyDecorator = (): AnyDecorator => AnyDecoratorFactory(
 );
 ```
 
+## Reflect Hooks
+Allow hooks to be added to the decorator / reflection system to intercept various points in the flow of creating reflection information. Adding hooks is done by calling **addHook** on the ReflectHelper class.
+This can be usefull for example to keep track of all classes that have decorators by intercepting class reflection info creation.
+
+```typescript
+ReflectHelper.addHook(hook : Partial<IReflectionHook>);
+```
+```typescript
+interface IReflectionHook {
+  // Called after the class data has been created
+  onCreateClass(cd: ClassData): void;
+  // Called once the class has been augmented with information from typescript / javascript reflection
+  onProcessedClass(cd: ClassData): void;
+  // Called once a method reflection information is created
+  onCreateMethod(cd: ClassData, md: MethodData): void;
+  // Called once a method is processed as part of the class augmentation process, after this
+  // - The method should have return types
+  // - The parameters should have names
+  // - Any parameter not decorated should have the target associated
+  // - The method flag should be valid
+  onProcessedMethod(cd: ClassData, md: MethodData): void;
+  // Called once a property reflection information is created
+  onCreateProperty(cd: ClassData, pd: PropertyData): void;
+  // Called once a parameter reflection information is created
+  onCreateParameter(cd: ClassData, md: MethodData, pd: ParameterData): void;
+}
+```
+
 ## Dynamic
 Functionality for defining a class / methods at runtime, simple interface, simple to use, simple to understand
 
@@ -264,7 +315,6 @@ const classData: ClassData = Dynamic.createClass('MyCustomDynamicClass', null, (
       dp.decorate(MyPropDecorator());
       dp.setValue('YourFirstName');
    });
-      
 });
 const instance = Reflect.create(classData.target, []);
 // This will log 3
@@ -282,7 +332,7 @@ For a complex example including [lib-intercept](https://github.com/MRazvan/lib-i
 
 Assume we can intercept a function call on a certain class, and we want to decorate the methods with some
 additional functionality, like:
-1. Caching7
+1. Caching
 2. Return value override
 3. Argument value override
 

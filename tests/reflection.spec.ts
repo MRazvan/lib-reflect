@@ -2,7 +2,7 @@
 /// <reference path="../src/defines.d.ts" />
 import { expect } from "chai";
 import { ClassData, ClassDecoratorFactory, MethodDecoratorFactory, ParameterDecoratorFactory, PropertyDecoratorFactory, ReflectHelper } from "../index";
-import { MethodData, ParameterData, PropertyData } from "../src/reflection";
+import { AnyDecoratorFactory, DecoratorType, GetDecoratorType, MethodData, ParameterData, PropertyData } from "../src/reflection";
 
 const ClassAttr = () => ClassDecoratorFactory((classData: ClassData) => { });
 @ClassAttr()
@@ -235,7 +235,7 @@ describe('ReflectHelper', () => {
       expect(mdata.parameters.length).to.eq(3);
    });
 
-      it('Should set parameters names', () => {
+   it('Should set parameters names', () => {
       class TestClass {
          public method (y: any, z: any, t: any){}
       }
@@ -247,4 +247,106 @@ describe('ReflectHelper', () => {
       expect(mdata.parameters[1].name).to.eq('z');
       expect(mdata.parameters[2].name).to.eq('t');
    });
+
+   it('Should reflect constructor parameter types', () => {
+      @ClassAttr()
+      class TestConstruct {
+         constructor(c: ClassData){}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      const mdata = cdata.getConstructorData();
+      expect(mdata.parameters.length).to.eq(1);
+      expect(mdata.parameters[0].target).to.eq(ClassData);
+   });   
+
+   it('Should not rebuild multiple times', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      @ClassAttr()
+      class TestConstruct {
+         constructor(c: ClassData){}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      // Remove the parameter
+      cdata.methods[0].parameters.shift();
+      // Run build again
+      cdata.build();
+      const mdata = cdata.getConstructorData();
+      // We should still have 0 parameters
+      expect(mdata.parameters.length).to.eq(0);
+   });     
+
+   it('GetDecoratorType class', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const ClassDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as ClassDecorator;
+      @ClassDec()
+      class TestConstruct {
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Class);
+   });     
+   it('GetDecoratorType method', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const MethodDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as MethodDecorator;
+      class TestConstruct {
+         @MethodDec()
+         public method(): void {}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Method);
+   });   
+
+   it('GetDecoratorType property', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const PropDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as PropertyDecorator;
+      class TestConstruct {
+         @PropDec()
+         public prop : string;
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Property);
+   });   
+   it('GetDecoratorType parameter', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const ParamDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as ParameterDecorator;
+      class TestConstruct {
+         public method(@ParamDec() a : string): void {}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Parameter);
+   });
+   
 });

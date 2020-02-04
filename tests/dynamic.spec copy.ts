@@ -32,8 +32,6 @@ const classData: ClassData = Dynamic.createClass('MyCustomDynamicClass', null, (
    dc.addMethod('sayHello', (dm: DynamicMethod) => {
       dm.addBody(function () { return 'Hello ' + this.name; });
    })
-   dc.addMethod('empty');
-   
    dc.addProperty('name', (dp: DynamicProperty) => {
       dp.decorate(MyPropDecorator());
       dp.setValue('TestName');
@@ -52,7 +50,7 @@ describe('Dynamic', () => {
    })
 
    it('Should create methods on the class.', () => {
-      expect(classData.methods.length).to.eq(4);
+      expect(classData.methods.length).to.eq(3);
       expect(classData.methods[1].name).to.eq('dynamicMethod');
    })
 
@@ -95,10 +93,4 @@ describe('Dynamic', () => {
       let result = inst.sayHello();
       expect(result).to.eq('Hello TestName');
    })
-
-   it('Should have an empty method', () => {
-      const inst = Reflect.construct(classData.target, []);
-      let result = inst.empty();
-      expect(result).to.be.undefined;
-   })   
 });
