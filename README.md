@@ -25,7 +25,6 @@ It tries to simplify storing data on the reflected target without using reflect-
   - [Reflect Hooks](#reflect-hooks)
   - [Dynamic](#dynamic)
   - [Example](#example)
-      - [Example using Reflection and Decorators](#example-using-reflection-and-decorators)
 ## Installation
 Standard npm package install
 ```
@@ -195,6 +194,10 @@ const classDecorator = (val:number): ClassDecorator => ClassDecoratorFactory(
     // Manipulate the class reflection data if needed
   }
 );
+
+@classDecorator()
+class Test {
+}
 ```
 ### PropertyDecoratorFactory
 It accepts a callback that takes the [ClassData](#classdata) and the [PropertyData](#propertydata) as arguments, you can modify the reflection information inside that callback.
@@ -207,6 +210,11 @@ const propertyDecorator = (val:number): PropertyDecorator => PropertyDecoratorFa
     prop.tags['MyCustomPropertyValue'] = val;
   }
 );
+
+class Test {
+  @propertyDecorator()
+  public prop:string;
+}
 ```
 ### MethodDecoratorFactory
 It accepts a callback that takes the [ClassData](#classdata), [MethodData](#methodata) and the property descriptor as arguments, you can modify the reflection information inside that callback.
@@ -219,6 +227,11 @@ const methodDecorator = (val:number): MethodDecorator => MethodDecoratorFactory(
     md.tags['MethodCacheTimeout'] = val;
   }
 );
+
+class Test {
+  @methodDecorator()
+  public method(arg1:string):void{}
+}
 ```
 ### ParameterDecoratorFactory
 It accepts a callback that takes the [ClassData](#classdata), [MethodData](#methodata) and the [ParameterData](#parameterdata) as arguments, you can modify the reflection information inside that callback.
@@ -230,17 +243,37 @@ const parameterDecorator = (): ParameterDecorator => ParameterDecoratorFactory(
     // Manipulate the class / method / argument reflection data if needed
   }
 );
+
+class Test {
+  public method(@parameterDecorator() arg1:string):void{}
+}
 ```
 ### AnyDecoratorFactory
 It accepts a callback that takes a combination of all the above as arguments, you can modify the reflection information inside that callback.
 It can be applied on anything (class, method, properties, parameters)
 ```typescript
+enum DecoratorType {
+  Class,
+  Method,
+  Property,
+  Parameter
+}
 // Example of a Decorator that can be used to decorate anything created using the AnyDecoratorFactory
 const anyDecorator = (): AnyDecorator => AnyDecoratorFactory(
   (cd: ClassData, arg1: MethodData | PropertyData | undefined, arg2: ParameterData | any) => {
     // Manipulate the class / property / method / argument reflection data if needed
+    const type = GetDecoratorType(cd, arg1, arg2);
+    switch(type)...
   }
 );
+
+@anyDecorator()
+class Test {
+  @anyDecorator()
+  public prop:string;
+  @anyDecorator()
+  public method(@anyDecorator() arg1:string):void{}
+}
 ```
 
 ## Reflect Hooks
@@ -254,10 +287,14 @@ ReflectHelper.addHook(hook : Partial<IReflectionHook>);
 interface IReflectionHook {
   // Called after the class data has been created
   onCreateClass(cd: ClassData): void;
+  // Called after a decorator is applied
+  onDecoratedClass(cd: ClassData): void;
   // Called once the class has been augmented with information from typescript / javascript reflection
   onProcessedClass(cd: ClassData): void;
   // Called once a method reflection information is created
   onCreateMethod(cd: ClassData, md: MethodData): void;
+  // Called after a decorator is applied
+  onDecoratedMethod(cd: ClassData, md: MethodData): void;
   // Called once a method is processed as part of the class augmentation process, after this
   // - The method should have return types
   // - The parameters should have names
@@ -266,8 +303,12 @@ interface IReflectionHook {
   onProcessedMethod(cd: ClassData, md: MethodData): void;
   // Called once a property reflection information is created
   onCreateProperty(cd: ClassData, pd: PropertyData): void;
+  // Called after a decorator is applied
+  onDecoratedProperty(cd: ClassData, pd: PropertyData): void;
   // Called once a parameter reflection information is created
   onCreateParameter(cd: ClassData, md: MethodData, pd: ParameterData): void;
+  // Called after a decorator is applied
+  onDecoratedParameter(cd: ClassData, md: MethodData, pd: ParameterData): void;
 }
 ```
 
@@ -327,136 +368,3 @@ console.log(classData);
 ## Example
 
 For a complex example including [lib-intercept](https://github.com/MRazvan/lib-intercept) go to [lib-intercept-example](https://github.com/MRazvan/lib-intercept-example)
-
-#### Example using Reflection and Decorators
-
-Assume we can intercept a function call on a certain class, and we want to decorate the methods with some
-additional functionality, like:
-1. Caching
-2. Return value override
-3. Argument value override
-
-Define a class decorator
-```typescript
-// Define a new ClassDecorator
-const MyClassDecorator = (key: string, value: string) => ClassDecoratorFactory((cd: ClassData) => {
-   cd.tags['MyCustomTag'] = (cd.tags['MyCustomTag'] || {})[key] = value;
-});
-```
-
-Define the caching decorator
-
-```typescript
-// Method decorator, used to cache the function result
-class CacheData extends MethodAttributeData {
-   public ttl: number;
-   public lastUpdate: number;
-   public value: any;
-}
-// TTL is in milliseconds
-const MethodCacheResult = (ttl: number) => MethodDecoratorFactory(
-  (cd: ClassData, method: MethodData, desc: any) => {
-    const cacheData = new CacheData();
-    cacheData.ttl = ttl;
-    method.attributesData.push(cacheData);
-  }
-);
-```
-
-Define the return value override decorator
-
-```typescript
-// Method decorator used to set the return value
-const MethodReturnValue = (value: number) => MethodDecoratorFactory(
-  (cd: ClassData, method: MethodData, desc: any) => {
-    method.tags['MethodReturnValue'] = value;
-  }
-);
-```
-
-Define the argument value override decorator
-```typescript
-// Method decorator used to 'inject' and override an argument
-class ArgValue {
-   public idx: number;
-   public value: any;
-   constructor(data: Required<ArgValue>) { Object.assign(this, data); }
-}
-const MethodArgValue = (idx: number, value: any) => MethodDecoratorFactory(
-  (cd: ClassData, method: MethodData, desc: any) => {
-    const data = (method.tags['MethodArgValue'] || []);
-    data.push(new ArgValue({ idx, value }));
-    method.tags['MethodArgValue'] = data;
-  }
-);
-```
-
-Finally decorate the class
-
-```typescript
-@MyClassDecorator('name', 'CustomName')
-class DecoratedClass {
-   // @MethodReturnValue(100)
-   @MethodCacheResult(3)
-   @MethodArgValue(0, 'Hello World')
-   public DecoratedMethod(arg1: string, arg2: number): string {
-      return arg1 + ' - ' + arg2;
-   }
-}
-
-const classData = ReflectHelper.getClass(DecoratedClass);
-classData.build();
-console.log(classData.methods);
-```
-
-Simple example on how to use the data we aquired (not too many sanity checks)
-```typescript
-function execute(targetClass: Function, targetMethod: string, args: any[]): any {
-   // Get the class data
-   const cd = ReflectHelper.getClass(targetClass);
-   // Get the method data from the class
-   const md = cd.methods.find(m => m.name === targetMethod);
-   // Check to see if we have caching and if the cache is still 'fresh'
-   const cache = md.getAttributesOfType<CacheData>(CacheData)[0];
-   if (cache && cache.lastUpdate && (cache.lastUpdate + cache.ttl) > Date.now()) {
-      // We still have a valid cache
-      return cache.value;
-   }
-   // Create the arguments to be sent to the method
-   const argOverride = (md.tags['MethodArgValue'] || []);
-   for (const aOv of argOverride) {
-      if (aOv.idx > args.length) {
-         continue;
-      }
-      if (aOv.idx === args.length) {
-         args.push(aOv.value);
-         continue;
-      }
-      args[aOv.idx] = aOv.value;
-   }
-   // Call the function after we create an instance of the class
-   const instance = Reflect.construct(cd.target, []);
-   const result = instance[md.name].apply(instance, args);
-
-   // Get the return value override if any
-   const returnValueOverride = md.tags['MethodReturnValue'];
-   // Update the cache if needed
-   if (cache) {
-      cache.lastUpdate = Date.now();
-      cache.value = returnValueOverride ? returnValueOverride : result;
-   }
-
-   // Finally perform the return
-   return returnValueOverride ? returnValueOverride : result;
-}
-
-
-// This should log 'Hello World - 1' until the cache expires and then it should log 'Hello World - 33'
-//    The first argument is overridden so it will never be 'MyName' or 'YourName'
-const originalResult = execute(DecoratedClass, 'DecoratedMethod', ['MyName', 1]);
-let result: string = null;
-do {
-   result = execute(DecoratedClass, 'DecoratedMethod', ['YourName', 33])
-   console.log(result);
-} while (originalResult === result);
-```
