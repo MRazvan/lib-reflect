@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import { isNumber } from 'util';
 import { isNil } from '../utils';
-import { ClassData, MethodData, ParameterData, PropertyData, ReflectHelper } from './reflection';
+import { ClassData, MethodData, ParameterData, PropertyData, ReflectHelper, ReflectHelperHooks } from './reflection';
 
 export declare type ClassDecoratorCallback = (classData: ClassData) => void;
 export declare type MethodDecoratorCallback = <T>(
@@ -76,25 +76,35 @@ export function AnyDecoratorFactory(callback: AnyDecoratorCallback): AnyDecorato
       if (isNil(arg2)) {
         // 1:
         // Class decorator
-        callback(ReflectHelper.getOrCreateClassData(targetFunction));
+        const cd = ReflectHelper.getOrCreateClassData(targetFunction);
+        callback(cd);
+        ReflectHelperHooks.invokeHook(h => h.onDecoratedClass, cd);
       } else {
         // 2.1:
         // When decorating a constructor, the method is undefined
-        callback(cd, cd.getConstructorData(), arg2);
+        const md = cd.getConstructorData();
+        callback(cd, md, arg2);
+        ReflectHelperHooks.invokeHook(h => h.onDecoratedMethod, cd, md);
       }
     } else if (isNil(arg2)) {
       // 3:
       // We have a property decorator
-      callback(cd, cd.getOrCreateProperty(arg1));
+      const prop = cd.getOrCreateProperty(arg1);
+      callback(cd, prop);
+      ReflectHelperHooks.invokeHook(h => h.onDecoratedProperty, cd, prop);
     } else if (isNumber(arg2)) {
       // 4:
       // We have a parameter decoration
       const method = cd.getOrCreateMethod(arg1);
-      callback(cd, method, method.getOrCreateParameter(arg2));
+      const param = method.getOrCreateParameter(arg2);
+      callback(cd, method, param);
+      ReflectHelperHooks.invokeHook(h => h.onDecoratedParameter, cd, method, param);
     } else if (!isNil(arg1)) {
       // 2.2
       // A method decorator
-      callback(cd, cd.getOrCreateMethod(arg1), arg2);
+      const method = cd.getOrCreateMethod(arg1);
+      callback(cd, method, arg2);
+      ReflectHelperHooks.invokeHook(h => h.onDecoratedMethod, cd, method);
     }
   };
 }

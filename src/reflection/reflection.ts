@@ -322,15 +322,30 @@ export class ClassData {
 }
 
 export interface IReflectionHook {
+  // Called after the class data has been created
   onCreateClass(cd: ClassData): void;
+  // Called after a decorator is applied
+  onDecoratedClass(cd: ClassData): void;
+  // Called once the class has been augmented with information from typescript / javascript reflection
   onProcessedClass(cd: ClassData): void;
-
+  // Called once a method reflection information is created
   onCreateMethod(cd: ClassData, md: MethodData): void;
+  // Called after a decorator is applied
+  onDecoratedMethod(cd: ClassData, md: MethodData): void;
+  // Called once a method is processed as part of the class augmentation process, after this
+  // - The method should have return types
+  // - The parameters should have names
+  // - Any parameter not decorated should have the target associated
+  // - The method flag should be valid
   onProcessedMethod(cd: ClassData, md: MethodData): void;
-
+  // Called once a property reflection information is created
   onCreateProperty(cd: ClassData, pd: PropertyData): void;
-
+  // Called after a decorator is applied
+  onDecoratedProperty(cd: ClassData, pd: PropertyData): void;
+  // Called once a parameter reflection information is created
   onCreateParameter(cd: ClassData, md: MethodData, pd: ParameterData): void;
+  // Called after a decorator is applied
+  onDecoratedParameter(cd: ClassData, md: MethodData, pd: ParameterData): void;
 }
 
 export class ReflectHelper {
@@ -379,7 +394,7 @@ export class ReflectHelper {
   }
 }
 
-class ReflectHelperHooks {
+export class ReflectHelperHooks {
   private static _getHooks(): IReflectionHook[] {
     return (Reflect.getMetadata(kReflectHooksKey, ReflectHelper) as IReflectionHook[]) || [];
   }
