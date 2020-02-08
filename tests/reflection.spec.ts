@@ -214,7 +214,7 @@ describe('ReflectHelper', () => {
       expect(method.returnType).to.eq(TestClass);
    });
 
-   it('Should get constructor parameter data', () => {
+   it('Should get constructor parameter data with decorator', () => {
       const P = (): ParameterDecorator => ParameterDecoratorFactory((cd, md, pd) => {
          pd.tags['Decorated'] = true;
       });
@@ -232,6 +232,25 @@ describe('ReflectHelper', () => {
       expect(p.tags['Decorated']).to.be.true;
       expect(p.target).to.eq(Number);
    });   
+
+   it('Should get constructor parameter data without decorators', () => {
+      const P = (): ParameterDecorator => ParameterDecoratorFactory((cd, md, pd) => {
+         pd.tags['Decorated'] = true;
+      });
+      @ClassAttr()
+      class TestClass {
+         constructor(m: Number){}
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      const method = cdata.getConstructorData();
+      expect(method).not.to.be.undefined;
+      expect(method).not.to.be.null;
+      expect(method.returnType).to.eq(TestClass);
+      expect(method.parameters.length).to.eq(1);
+      const p = method.parameters[0];
+      expect(p.target).to.eq(Number);
+   });      
 
    it('Should get create parameters information even without decorators', () => {
       class TestClass {
