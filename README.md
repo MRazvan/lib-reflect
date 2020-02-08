@@ -161,7 +161,7 @@ class ParameterData {
   // The index of the parameter
   public idx: number;
   // The type of the parameter
-  public target: Function;
+  public type: Function;
   // Custom attribute data that decorators can add
   public attributesData: AttributeData[];
   // Tags attached to this parameter by various modules if needed
