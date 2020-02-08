@@ -121,6 +121,21 @@ describe('ReflectHelper', () => {
       expect(property.name).to.be.eq('name');
    });
 
+   it('Should return class metadata for parent when child does not have any', () => {
+      @ClassAttr()
+      class Base {}
+
+      class Descendant extends Base {}
+      const cdata = ReflectHelper.getClassWithParentsIncluded(Descendant);
+      expect(cdata).to.have.length(2);
+      const firstData = cdata[0];
+      expect(firstData).to.be.null;
+      const secondData = cdata[1];
+      expect(secondData).not.to.be.undefined;
+      expect(secondData).not.to.be.null;
+      expect(secondData.name).to.eq('Base');
+   });   
+
    it('Should populate class information without property.', () => {
 
       class TestClass {

@@ -116,16 +116,16 @@ export function ClassDecoratorFactory(callback: ClassDecoratorCallback): ClassDe
 }
 
 export function PropertyDecoratorFactory(callback: PropertyDecoratorCallback): PropertyDecorator {
-  return (target: Object, propertyKey: string): void => {
-    const cd = ReflectHelper.getOrCreateClassData(target.constructor);
+  return (target: Function, propertyKey: string): void => {
+    const cd = ReflectHelper.getOrCreateClassData(target);
     const prop = cd.getOrCreateProperty(propertyKey);
     callback(cd, prop);
   };
 }
 
 export function ParameterDecoratorFactory(callback: ParameterDecoratorCallback): ParameterDecorator {
-  return (target: Object, propertyKey: string, parameterIndex: number): void => {
-    const cd = ReflectHelper.getOrCreateClassData(isNil(propertyKey) ? (target as Function) : target.constructor);
+  return (target: Function, propertyKey: string, parameterIndex: number): void => {
+    const cd = ReflectHelper.getOrCreateClassData(target);
     const method = cd.getOrCreateMethod(propertyKey);
     const param = method.getOrCreateParameter(parameterIndex);
     callback(cd, method, param);
@@ -133,8 +133,8 @@ export function ParameterDecoratorFactory(callback: ParameterDecoratorCallback):
 }
 
 export function MethodDecoratorFactory(callback: MethodDecoratorCallback): MethodDecorator {
-  return <T>(target: Object, propertyKey: string, descriptor: TypedPropertyDescriptor<T>): void => {
-    const cd = ReflectHelper.getOrCreateClassData(target.constructor);
+  return <T>(target: Function, propertyKey: string, descriptor: TypedPropertyDescriptor<T>): void => {
+    const cd = ReflectHelper.getOrCreateClassData(target);
     const method = cd.getOrCreateMethod(propertyKey);
     callback(cd, method, descriptor);
   };

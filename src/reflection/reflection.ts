@@ -359,17 +359,26 @@ export class ReflectHelper {
   }
 
   public static getClassWithParentsIncluded(target: Function): ClassData[] {
-    const result = [Reflect.getMetadata(kReflectKey, target) as ClassData];
+    const result = [(Reflect.getOwnMetadata(kReflectKey, target) as ClassData) || null];
     let current: Function = target;
+    let lastFoundIdx = -1;
     while (!isNil(current.__proto__)) {
-      const currentData = Reflect.getMetadata(kReflectKey, current.__proto__) as ClassData;
-      if (isNil(currentData)) {
-        break;
+      const currentData = Reflect.getOwnMetadata(kReflectKey, current.__proto__) as ClassData;
+      // Keep track of the last one not null
+      if (!isNil(currentData)) {
+        lastFoundIdx = result.length;
       }
-      result.push(currentData);
+      result.push(currentData || null);
       current = current.__proto__;
     }
-    return result;
+    if (lastFoundIdx === -1) {
+      return [];
+    }
+    // Return the data up to the last one not null
+    //    This allows the following [null, ClassData]
+    // Meaning the child has a parent with class data,
+    //  the child has nothing
+    return result.slice(0, lastFoundIdx + 1);
   }
 
   public static getClass(target: Function): ClassData {
@@ -377,17 +386,18 @@ export class ReflectHelper {
   }
 
   public static getOrCreateClassData(target: Function): ClassData {
-    let found: ClassData = Reflect.getOwnMetadata(kReflectKey, target);
+    const processedTarget = target.prototype ? target : target.constructor;
+    let found: ClassData = Reflect.getOwnMetadata(kReflectKey, processedTarget);
     if (isNil(found)) {
       found = new ClassData();
-      found.name = target.name;
-      found.target = target;
+      found.name = processedTarget.name;
+      found.target = processedTarget;
       found.attributesData = [];
       found.methods = [];
       found.tags = {};
       found.properties = [];
-      found.getConstructorData().returnType = target;
-      Reflect.defineMetadata(kReflectKey, found, target);
+      found.getConstructorData().returnType = processedTarget;
+      Reflect.defineMetadata(kReflectKey, found, processedTarget);
       ReflectHelperHooks.invokeHook(h => h.onCreateClass, found);
     }
     return found;
