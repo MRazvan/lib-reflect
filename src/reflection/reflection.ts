@@ -191,7 +191,7 @@ export class ClassData {
         // Augment parameters with typescript info if available
         for (let paramIdx = 0; paramIdx < reflectedParamTypes.length; ++paramIdx) {
           const paramData: ParameterData = method.getOrCreateParameter(paramIdx);
-          paramData.target = paramData.target || reflectedParamTypes[paramIdx];
+          paramData.type = paramData.type || reflectedParamTypes[paramIdx];
         }
 
         // We have extra parameters, or the methods / parameters are not decorated

@@ -55,7 +55,7 @@ export class DynamicMethod {
       callback(new DynamicParameter(this.classData, this.method, paramData));
     }
     if (!isNil(type)) {
-      paramData.target = type;
+      paramData.type = type;
     }
     return this;
   }
