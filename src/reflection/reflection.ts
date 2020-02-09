@@ -414,7 +414,7 @@ export class ReflectHelperHooks {
     for (const hook of hooks) {
       const hookTargetFunction = target(hook);
       if (isFunction(hookTargetFunction)) {
-        hookTargetFunction.call(hooks, ...args);
+        hookTargetFunction.call(hook, ...args);
       }
     }
   }
