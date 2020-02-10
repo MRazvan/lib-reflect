@@ -74,7 +74,7 @@ describe('ReflectHelper', () => {
       const argument = cdata.methods[1].parameters[1];
       expect(argument).not.to.be.null;
       expect(argument.idx).to.be.eq(1);
-      expect(argument.target.name).to.be.eq('String');
+      expect(argument.type.name).to.be.eq('String');
    });
 
    it('ClassData should have property metadata if property is decorated.', () => {
@@ -230,7 +230,7 @@ describe('ReflectHelper', () => {
       expect(method.parameters.length).to.eq(1);
       const p = method.parameters[0];
       expect(p.tags['Decorated']).to.be.true;
-      expect(p.target).to.eq(Number);
+      expect(p.type).to.eq(Number);
    });   
 
    it('Should get constructor parameter data without decorators', () => {
@@ -249,7 +249,7 @@ describe('ReflectHelper', () => {
       expect(method.returnType).to.eq(TestClass);
       expect(method.parameters.length).to.eq(1);
       const p = method.parameters[0];
-      expect(p.target).to.eq(Number);
+      expect(p.type).to.eq(Number);
    });      
 
    it('Should get create parameters information even without decorators', () => {
@@ -292,7 +292,7 @@ describe('ReflectHelper', () => {
       cdata.build();
       const mdata = cdata.getConstructorData();
       expect(mdata.parameters.length).to.eq(1);
-      expect(mdata.parameters[0].target).to.eq(ClassData);
+      expect(mdata.parameters[0].type).to.eq(ClassData);
    });   
 
    it('Should not rebuild multiple times', () => {
