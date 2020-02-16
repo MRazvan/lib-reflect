@@ -195,7 +195,7 @@ const classDecorator = (val:number): ClassDecorator => ClassDecoratorFactory(
   }
 );
 
-@classDecorator()
+@classDecorator(10)
 class Test {
 }
 ```
@@ -212,7 +212,7 @@ const propertyDecorator = (val:number): PropertyDecorator => PropertyDecoratorFa
 );
 
 class Test {
-  @propertyDecorator()
+  @propertyDecorator(10)
   public prop:string;
 }
 ```
@@ -229,7 +229,7 @@ const methodDecorator = (val:number): MethodDecorator => MethodDecoratorFactory(
 );
 
 class Test {
-  @methodDecorator()
+  @methodDecorator(10)
   public method(arg1:string):void{}
 }
 ```
