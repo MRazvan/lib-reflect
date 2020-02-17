@@ -2,7 +2,7 @@
 /// <reference path="../src/defines.d.ts" />
 import { expect } from "chai";
 import { ClassData, ClassDecoratorFactory, MethodDecoratorFactory, ParameterDecoratorFactory, PropertyDecoratorFactory, ReflectHelper } from "../index";
-import { MethodData, ParameterData, PropertyData } from "../src/reflection";
+import { AnyDecoratorFactory, DecoratorType, GetDecoratorType, MethodData, ParameterData, PropertyData } from "../src/reflection";
 
 const ClassAttr = () => ClassDecoratorFactory((classData: ClassData) => { });
 @ClassAttr()
@@ -74,7 +74,7 @@ describe('ReflectHelper', () => {
       const argument = cdata.methods[1].parameters[1];
       expect(argument).not.to.be.null;
       expect(argument.idx).to.be.eq(1);
-      expect(argument.target.name).to.be.eq('String');
+      expect(argument.type.name).to.be.eq('String');
    });
 
    it('ClassData should have property metadata if property is decorated.', () => {
@@ -120,6 +120,21 @@ describe('ReflectHelper', () => {
       property = secondData.properties[0];
       expect(property.name).to.be.eq('name');
    });
+
+   it('Should return class metadata for parent when child does not have any', () => {
+      @ClassAttr()
+      class Base {}
+
+      class Descendant extends Base {}
+      const cdata = ReflectHelper.getClassWithParentsIncluded(Descendant);
+      expect(cdata).to.have.length(2);
+      const firstData = cdata[0];
+      expect(firstData).to.be.null;
+      const secondData = cdata[1];
+      expect(secondData).not.to.be.undefined;
+      expect(secondData).not.to.be.null;
+      expect(secondData.name).to.eq('Base');
+   });   
 
    it('Should populate class information without property.', () => {
 
@@ -199,7 +214,7 @@ describe('ReflectHelper', () => {
       expect(method.returnType).to.eq(TestClass);
    });
 
-   it('Should get constructor parameter data', () => {
+   it('Should get constructor parameter data with decorator', () => {
       const P = (): ParameterDecorator => ParameterDecoratorFactory((cd, md, pd) => {
          pd.tags['Decorated'] = true;
       });
@@ -215,8 +230,27 @@ describe('ReflectHelper', () => {
       expect(method.parameters.length).to.eq(1);
       const p = method.parameters[0];
       expect(p.tags['Decorated']).to.be.true;
-      expect(p.target).to.eq(Number);
+      expect(p.type).to.eq(Number);
    });   
+
+   it('Should get constructor parameter data without decorators', () => {
+      const P = (): ParameterDecorator => ParameterDecoratorFactory((cd, md, pd) => {
+         pd.tags['Decorated'] = true;
+      });
+      @ClassAttr()
+      class TestClass {
+         constructor(m: Number){}
+      }
+      const cdata = ReflectHelper.getOrCreateClassData(TestClass);
+      cdata.build();
+      const method = cdata.getConstructorData();
+      expect(method).not.to.be.undefined;
+      expect(method).not.to.be.null;
+      expect(method.returnType).to.eq(TestClass);
+      expect(method.parameters.length).to.eq(1);
+      const p = method.parameters[0];
+      expect(p.type).to.eq(Number);
+   });      
 
    it('Should get create parameters information even without decorators', () => {
       class TestClass {
@@ -235,7 +269,7 @@ describe('ReflectHelper', () => {
       expect(mdata.parameters.length).to.eq(3);
    });
 
-      it('Should set parameters names', () => {
+   it('Should set parameters names', () => {
       class TestClass {
          public method (y: any, z: any, t: any){}
       }
@@ -247,4 +281,106 @@ describe('ReflectHelper', () => {
       expect(mdata.parameters[1].name).to.eq('z');
       expect(mdata.parameters[2].name).to.eq('t');
    });
+
+   it('Should reflect constructor parameter types', () => {
+      @ClassAttr()
+      class TestConstruct {
+         constructor(c: ClassData){}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      const mdata = cdata.getConstructorData();
+      expect(mdata.parameters.length).to.eq(1);
+      expect(mdata.parameters[0].type).to.eq(ClassData);
+   });   
+
+   it('Should not rebuild multiple times', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      @ClassAttr()
+      class TestConstruct {
+         constructor(c: ClassData){}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      // Remove the parameter
+      cdata.methods[0].parameters.shift();
+      // Run build again
+      cdata.build();
+      const mdata = cdata.getConstructorData();
+      // We should still have 0 parameters
+      expect(mdata.parameters.length).to.eq(0);
+   });     
+
+   it('GetDecoratorType class', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const ClassDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as ClassDecorator;
+      @ClassDec()
+      class TestConstruct {
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Class);
+   });     
+   it('GetDecoratorType method', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const MethodDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as MethodDecorator;
+      class TestConstruct {
+         @MethodDec()
+         public method(): void {}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Method);
+   });   
+
+   it('GetDecoratorType property', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const PropDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as PropertyDecorator;
+      class TestConstruct {
+         @PropDec()
+         public prop : string;
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Property);
+   });   
+   it('GetDecoratorType parameter', () => {
+      // There is no easy way to test this, however we can test it by
+      //  modifing the number of arguments of a method and running build again
+      //  the number of arguments should not change
+      let type: DecoratorType = null;
+      const ParamDec = () => AnyDecoratorFactory((classData: ClassData,  arg1?: MethodData | PropertyData,  arg2?: ParameterData | any) => {
+         type = GetDecoratorType(classData, arg1, arg2);
+      }) as ParameterDecorator;
+      class TestConstruct {
+         public method(@ParamDec() a : string): void {}
+      }
+
+      const cdata = ReflectHelper.getOrCreateClassData(TestConstruct);
+      cdata.build();
+      expect(type).to.eq(DecoratorType.Parameter);
+   });
+   
 });

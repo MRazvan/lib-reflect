@@ -1,6 +1,6 @@
 // Shameless copy from angularjs
 // https://github.com/angular/angular.js/blob/master/src/auto/injector.js
-const FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
+const FN_ARGS = /^function\s*[^(]*\(\s*([^)]*)\)/m;
 const FN_ARG_SPLIT = /,/;
 const FN_ARG = /^\s*(_?)(.+?)\1\s*$/;
 const STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/gm;
@@ -8,7 +8,6 @@ export function getMethodParameterNames(fn: any): any[] {
   let scannedParameters: any[];
   let fnText;
   let argDecl;
-  let last;
 
   if (typeof fn === 'function' && fn.length) {
     if (!(scannedParameters = fn.scannedParameters)) {
@@ -23,9 +22,6 @@ export function getMethodParameterNames(fn: any): any[] {
       });
       fn.scannedParameters = scannedParameters;
     }
-  } else if (Array.isArray(fn)) {
-    last = fn.length - 1;
-    scannedParameters = fn.slice(0, last);
   }
   return scannedParameters || [];
 }
